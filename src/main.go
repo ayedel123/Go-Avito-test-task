@@ -3,8 +3,11 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	_ "github.com/lib/pq"
 )
@@ -92,8 +95,30 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
+func newTenderHandler(w http.ResponseWriter, r *http.Request) {
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	defer r.Body.Close()
+
+	fmt.Fprintf(w, "Method: %s\n", r.Method)
+	fmt.Fprintf(w, "Headers: %v\n", r.Header)
+	fmt.Fprintf(w, "Body: %s\n", body)
+
+}
+
 func main() {
-	db, err := sql.Open("postgres", "user=postgres password=yourpassword dbname=yourdbname host=db port=5432 sslmode=disable")
+
+	/*dbUser := os.Getenv("POSTGRES_USERNAME")
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	dbName := os.Getenv("POSTGRES_DATABASE")
+	dbHost := os.Getenv("POSTGRES_HOST")
+	dbPort := os.Getenv("POSTGRES_PORT")
+	*/
+	connStr := os.Getenv("POSTGRES_CONN")
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -102,6 +127,8 @@ func main() {
 	http.HandleFunc("/api/ping", pingHandler)
 	http.HandleFunc("/api/users", usersHandler(db))
 	http.HandleFunc("/api/tenders", tendersHandler(db))
-	log.Println("Serever running on port 8080")
+	http.HandleFunc("/api/tenders/new", newTenderHandler)
+	log.Println("Server running on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+
 }
