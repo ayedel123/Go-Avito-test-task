@@ -8,6 +8,39 @@ import (
 	"time"
 )
 
+func getTenders(db *sql.DB) ([]Tender, error) {
+	rows, err := db.Query("SELECT id, name, description, status, service_type, author_id, version, created_at FROM tenders")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var tenders []Tender
+	for rows.Next() {
+		var tender Tender
+		if err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.Status, &tender.ServiceType, &tender.AuthorID, &tender.Version, &tender.CreatedAt); err != nil {
+			return nil, err
+		}
+		tenders = append(tenders, tender)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tenders, nil
+}
+
+func tendersHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenders, err := getTenders(db)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(tenders)
+	}
+}
+
 type CreateTenderData struct {
 	Name            string `json:"name"`
 	Description     string `json:"description"`
@@ -56,6 +89,19 @@ func isUserExists(db *sql.DB, req CreateTenderData) (int, int) {
 	return id, sqlErrToStatus(err, 401)
 }
 
+func createTenderDataToTender(req CreateTenderData, id, user_id, version int, created_at time.Time) *Tender {
+	return &Tender{
+		ID:          id,
+		Name:        req.Name,
+		Description: req.Description,
+		Status:      req.Status,
+		ServiceType: req.ServiceType,
+		AuthorID:    user_id,
+		Version:     version,
+		CreatedAt:   created_at,
+	}
+}
+
 func createTender(db *sql.DB, req CreateTenderData) (*Tender, int) {
 
 	user_id, status := isUserExists(db, req)
@@ -78,16 +124,7 @@ func createTender(db *sql.DB, req CreateTenderData) (*Tender, int) {
 
 	_, err := db.Exec(query, id, req.Name, req.Description, req.Status, req.ServiceType, user_id, version, created_at)
 	status = sqlErrToStatus(err, 500)
-	tender := &Tender{
-		ID:          id,
-		Name:        req.Name,
-		Description: req.Description,
-		Status:      req.Status,
-		ServiceType: req.ServiceType,
-		AuthorID:    user_id,
-		Version:     version,
-		CreatedAt:   created_at,
-	}
+	tender := createTenderDataToTender(req, id, user_id, version, created_at)
 
 	return tender, status
 

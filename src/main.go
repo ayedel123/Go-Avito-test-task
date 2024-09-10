@@ -44,39 +44,6 @@ func usersHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func getTenders(db *sql.DB) ([]Tender, error) {
-	rows, err := db.Query("SELECT id, name, description, status, service_type, author_id, version, created_at FROM tenders")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var tenders []Tender
-	for rows.Next() {
-		var tender Tender
-		if err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.Status, &tender.ServiceType, &tender.AuthorID, &tender.Version, &tender.CreatedAt); err != nil {
-			return nil, err
-		}
-		tenders = append(tenders, tender)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return tenders, nil
-}
-
-func tendersHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tenders, err := getTenders(db)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(tenders)
-	}
-}
-
 func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
