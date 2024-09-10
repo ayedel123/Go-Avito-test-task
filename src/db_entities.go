@@ -2,31 +2,28 @@ package main
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Tender
 type Tender struct {
-	ID          uuid.UUID `json:"id" gorm:"type:uuid;default:gen_random_uuid()"`
+	ID          int       `json:"id" gorm:"type:uuid;default:gen_random_uuid()"`
 	Name        string    `json:"name" binding:"required"`
 	Description string    `json:"description" binding:"required"`
 	Status      string    `json:"status" binding:"required"`
 	ServiceType string    `json:"service_type"`
-	AuthorID    uuid.UUID `json:"author_id" binding:"required"`
-	AuthorType  string    `json:"author_type" binding:"required"`
+	AuthorID    int       `json:"-"`
 	Version     int       `json:"version" gorm:"default:1"`
 	CreatedAt   time.Time `json:"created_at" gorm:"default:current_timestamp"`
 }
 
 // Bids
 type Bid struct {
-	ID         uuid.UUID `json:"id" gorm:"type:uuid;default:gen_random_uuid()"`
+	ID         int       `json:"id" gorm:"type:uuid;default:gen_random_uuid()"`
 	Name       string    `json:"name" binding:"required"`
 	Status     string    `json:"status" binding:"required"`
 	AuthorType string    `json:"author_type" binding:"required"`
-	AuthorID   uuid.UUID `json:"author_id" binding:"required"`
-	TenderID   uuid.UUID `json:"tender_id" binding:"required"`
+	AuthorID   int       `json:"author_id" binding:"required"`
+	TenderID   int       `json:"tender_id" binding:"required"`
 	Version    int       `json:"version" gorm:"default:1"`
 	CreatedAt  time.Time `json:"created_at" gorm:"default:current_timestamp"`
 }
