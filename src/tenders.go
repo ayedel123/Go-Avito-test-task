@@ -114,16 +114,21 @@ func createTender(db *sql.DB, req CreateTenderData) (*Tender, int) {
 		return new(Tender), status
 	}
 
-	id := 0
 	created_at := time.Now()
-
 	version := 1
-	query := `
-		INSERT INTO tenders (id, name, description, status, service_type,  author_id, version, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7,$8)`
 
-	_, err := db.Exec(query, id, req.Name, req.Description, req.Status, req.ServiceType, user_id, version, created_at)
-	status = sqlErrToStatus(err, 500)
+	query := `
+		INSERT INTO tenders (name, description, status, service_type, author_id, version, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id`
+
+	var id int
+	err := db.QueryRow(query, req.Name, req.Description, req.Status, req.ServiceType, user_id, version, created_at).Scan(&id)
+	status = sqlErrToStatus(err, http.StatusInternalServerError)
+
+	if status != http.StatusOK {
+		return nil, status
+	}
 	tender := createTenderDataToTender(req, id, user_id, version, created_at)
 
 	return tender, status

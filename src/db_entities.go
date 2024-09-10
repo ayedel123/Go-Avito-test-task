@@ -6,7 +6,8 @@ import (
 
 // Tender
 type Tender struct {
-	ID          int       `json:"id" gorm:"type:uuid;default:gen_random_uuid()"`
+	UniqueqID   int       `json:"-"`
+	ID          int       `json:"id"`
 	Name        string    `json:"name" binding:"required"`
 	Description string    `json:"description" binding:"required"`
 	Status      string    `json:"status" binding:"required"`
@@ -18,7 +19,7 @@ type Tender struct {
 
 // Bids
 type Bid struct {
-	ID         int       `json:"id" gorm:"type:uuid;default:gen_random_uuid()"`
+	ID         int       `json:"id"`
 	Name       string    `json:"name" binding:"required"`
 	Status     string    `json:"status" binding:"required"`
 	AuthorType string    `json:"author_type" binding:"required"`

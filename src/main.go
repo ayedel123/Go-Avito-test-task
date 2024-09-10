@@ -49,6 +49,13 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
+func httpSetHandlers(db *sql.DB) {
+	http.HandleFunc("/api/ping", pingHandler)
+	http.HandleFunc("/api/users", usersHandler(db))
+	http.HandleFunc("/api/tenders", tendersHandler(db))
+	http.HandleFunc("/api/tenders/new", newTenderHandler(db))
+}
+
 func main() {
 	connStr := os.Getenv("POSTGRES_CONN")
 	db, err := sql.Open("postgres", connStr)
@@ -56,11 +63,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
-
-	http.HandleFunc("/api/ping", pingHandler)
-	http.HandleFunc("/api/users", usersHandler(db))
-	http.HandleFunc("/api/tenders", tendersHandler(db))
-	http.HandleFunc("/api/tenders/new", newTenderHandler(db))
+	httpSetHandlers(db)
 	log.Println("Server running on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

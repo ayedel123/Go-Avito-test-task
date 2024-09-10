@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS organization_responsible (
 );
 
 CREATE TABLE IF NOT EXISTS tenders (
-    id SERIAL PRIMARY KEY,
+    unique_id SERIAL PRIMARY KEY,
+    id SERIAL,
     name VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     status VARCHAR(20) NOT NULL,
