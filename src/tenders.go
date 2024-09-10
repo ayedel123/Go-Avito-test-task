@@ -5,11 +5,19 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
-func getTenders(db *sql.DB) ([]Tender, error) {
-	rows, err := db.Query("SELECT id, name, description, status, service_type, author_id, version, created_at FROM tenders")
+func getTenders(db *sql.DB, limit, offset int) ([]Tender, error) {
+	query := `
+	SELECT id, name, description, status, service_type, author_id, version, created_at 
+	FROM tenders
+	ORDER BY name
+	LIMIT $1
+	OFFSET $2
+	`
+	rows, err := db.Query(query, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +39,15 @@ func getTenders(db *sql.DB) ([]Tender, error) {
 
 func tendersHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenders, err := getTenders(db)
+		if r.Method != http.MethodGet {
+			sendHttpErr(w, http.StatusMethodNotAllowed)
+			return
+		}
+		limit, offset, res_status := getLimitOffsetFromRequest(r)
+		if res_status != 200 {
+			return
+		}
+		tenders, err := getTenders(db, limit, offset)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -76,7 +92,7 @@ func isUserInOrganization(db *sql.DB, user_id, organization_id int) int {
 	return sqlErrToStatus(err, 403)
 }
 
-func isUserExists(db *sql.DB, req CreateTenderData) (int, int) {
+func getUserId(db *sql.DB, user_name string) (int, int) {
 	var id int
 
 	query := `
@@ -84,8 +100,8 @@ func isUserExists(db *sql.DB, req CreateTenderData) (int, int) {
         FROM  employee e WHERE e.username = $1
 		LIMIT 1
     `
-	err := db.QueryRow(query, req.CreatorUsername).Scan(&id)
-	log.Println("naem ", req.CreatorUsername, " err", err)
+	err := db.QueryRow(query, user_name).Scan(&id)
+	log.Println("name ", user_name, " err", err)
 	return id, sqlErrToStatus(err, 401)
 }
 
@@ -104,7 +120,7 @@ func createTenderDataToTender(req CreateTenderData, id, user_id, version int, cr
 
 func createTender(db *sql.DB, req CreateTenderData) (*Tender, int) {
 
-	user_id, status := isUserExists(db, req)
+	user_id, status := getUserId(db, req.CreatorUsername)
 
 	if status != 200 {
 		return new(Tender), status
@@ -139,33 +155,136 @@ func newTenderHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			http.Error(w, ErrMessageWrongRequest, http.StatusMethodNotAllowed)
 			return
 		}
 
 		var req CreateTenderData
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, ErrMessageWrongRequest, http.StatusBadRequest)
 			return
 		}
 
-		tender, status := createTender(db, req)
-		log.Println("Status", status)
-		if status != 200 {
-			switch status {
-			case http.StatusUnauthorized:
-				http.Error(w, "Incorrect username or user does not exist.", status)
-			case http.StatusForbidden:
-				http.Error(w, "User does not have permission for this organization.", status)
-			default:
-				http.Error(w, "Something went wrong. Please try again.", status)
-			}
+		tender, res_status := createTender(db, req)
+		log.Println("Status", res_status)
+		if res_status != 200 {
+			sendHttpErr(w, res_status)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(tender)
 
+	}
+
+}
+
+func getLimitOffsetFromRequest(r *http.Request) (int, int, int) {
+	s_limit := r.URL.Query().Get("limit")
+	s_offset := r.URL.Query().Get("offset")
+
+	var limit, offset int
+
+	if s_limit == "" {
+		s_limit = "5"
+	}
+
+	if s_offset == "" {
+		s_offset = "0"
+	}
+	status := 200
+	limit, status = atoi(s_limit)
+	if status == 200 {
+		offset, status = atoi(s_offset)
+	}
+	return limit, offset, status
+
+}
+
+func getUserNameFromRequest(r *http.Request) string {
+	username := r.URL.Query().Get("username")
+	return username
+}
+
+func getUserTenders(db *sql.DB, user_id, limit, offset int) ([]Tender, int) {
+	query := `
+	SELECT id, name, description, status, service_type, author_id, version, created_at
+	FROM tenders
+	WHERE author_id = $1
+	ORDER BY name
+	LIMIT $2 OFFSET $3
+	`
+	rows, err := db.Query(query, user_id, limit, offset)
+	res_status := sqlErrToStatus(err, 200)
+	if res_status != 200 {
+		return nil, res_status
+	}
+	defer rows.Close()
+	var tenders []Tender
+	for rows.Next() {
+		var tender Tender
+		if err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.Status, &tender.ServiceType, &tender.AuthorID, &tender.Version, &tender.CreatedAt); err != nil {
+			return nil, sqlErrToStatus(err, 500)
+		}
+		tenders = append(tenders, tender)
+	}
+
+	return tenders, sqlErrToStatus(rows.Err(), 500)
+
+}
+
+func myTendersHandler(db *sql.DB) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodGet {
+			sendHttpErr(w, http.StatusMethodNotAllowed)
+			return
+		}
+		limit, offset, res_status := getLimitOffsetFromRequest(r)
+		var tenders []Tender
+		var user_id int
+		if res_status == 200 {
+			user_name := getUserNameFromRequest(r)
+			user_id, res_status = getUserId(db, user_name)
+
+		}
+		if res_status == 200 {
+			tenders, res_status = getUserTenders(db, user_id, limit, offset)
+		}
+
+		if res_status != 200 {
+			sendHttpErr(w, res_status)
+
+		} else {
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(tenders)
+		}
+	}
+}
+
+func atoi(s string) (int, int) {
+
+	if num, err := strconv.Atoi(s); err == nil && num >= 0 {
+		return num, 200
+	}
+	return 0, 400
+}
+
+func sendHttpErr(w http.ResponseWriter, status int) {
+	switch status {
+	case http.StatusBadRequest:
+		http.Error(w, ErrMessageWrongRequest, status)
+	case http.StatusUnauthorized:
+		http.Error(w, ErrMessageWrongUser, status)
+	case http.StatusForbidden:
+		http.Error(w, ErrMessageNoPermission, status)
+	case http.StatusMethodNotAllowed:
+		http.Error(w, ErrMessageMethodNotAllowed, status)
+	default:
+		http.Error(w, ErrMessageServer, status)
 	}
 
 }

@@ -54,6 +54,7 @@ func httpSetHandlers(db *sql.DB) {
 	http.HandleFunc("/api/users", usersHandler(db))
 	http.HandleFunc("/api/tenders", tendersHandler(db))
 	http.HandleFunc("/api/tenders/new", newTenderHandler(db))
+	http.HandleFunc("/api/tenders/my", myTendersHandler(db))
 }
 
 func main() {
