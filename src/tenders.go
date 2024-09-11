@@ -31,6 +31,12 @@ type CreateTenderData struct {
 	CreatorUsername string `json:"creatorUsername"`
 }
 
+type editTenderRequestBody struct {
+	Name        string `json:"name,omitempty"`        // Поле не обязательно
+	Description string `json:"description,omitempty"` // Поле не обязательно
+	ServiceType string `json:"serviceType,omitempty"` // Поле не обязательно
+}
+
 func atoi(s string) (int, int) {
 
 	if num, err := strconv.Atoi(s); err == nil && num >= 0 {
@@ -393,6 +399,7 @@ func handlePutTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, t
 	new_status := r.URL.Query().Get("status")
 	if user_name == "" || !isNewStatusOk(new_status) {
 		sendHttpErr(w, 400)
+		return
 	}
 	user_id, res_status := getUserId(db, user_name)
 	if res_status != 200 {
@@ -423,7 +430,7 @@ func handlePutTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, t
 func statusTendersHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		s_tender_id := r.URL.Path[len("/tenders/") : len(r.URL.Path)-len("/status")]
+		s_tender_id := r.URL.Path[len("/api/tenders/") : len(r.URL.Path)-len("/status")]
 		tender_id, _ := atoi(s_tender_id)
 		log.Println("status handling ", s_tender_id)
 		w.Header().Set("Content-Type", "application/json")
@@ -437,5 +444,49 @@ func statusTendersHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+	}
+}
+
+func editTender() {
+
+}
+
+func editTendersHandler(db *sql.DB) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		s_tender_id := r.URL.Path[len("/api/tenders/") : len(r.URL.Path)-len("/edit")]
+		user_name := r.URL.Query().Get("username")
+
+		var reqBody editTenderRequestBody
+		tender_id, res_status := atoi(s_tender_id)
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil || res_status != 200 {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			log.Println("Error", s_tender_id)
+			return
+		}
+
+		tender, res_status := getTender(db, tender_id)
+		if res_status != 200 {
+			http.Error(w, "Wrong tender id", http.StatusBadRequest)
+			return
+		}
+
+		user_id, res_status := getUserId(db, user_name)
+		if res_status != 200 {
+			http.Error(w, "Wrong user", res_status)
+			return
+		}
+		res_status = isUserInOrganization(db, user_id, tender.OrganizationID)
+
+		if res_status != 200 {
+			http.Error(w, ErrMessageWrongUser, res_status)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("Editing " + s_tender_id))
+		w.Write([]byte("User " + user_name + " Userid " + strconv.Itoa(user_id) + "\n"))
+		json.NewEncoder(w).Encode(reqBody)
 	}
 }
