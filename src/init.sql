@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS tenders (
     description TEXT NOT NULL,
     status VARCHAR(20) NOT NULL,
     service_type VARCHAR(50) NOT NULL,
-    author_id INT NOT NULL,      
+    author_id INT NOT NULL,
+    organization_id INT NOT NULL,      
     version INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -48,7 +49,7 @@ CREATE TABLE IF NOT EXISTS bids (
     status VARCHAR(20) NOT NULL,
     author_type VARCHAR(20) NOT NULL,
     author_id INT NOT NULL,
-    tender_id INT NOT NULL REFERENCES tenders(id) ON DELETE CASCADE,
+    tender_id INT NOT NULL,
     version INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -74,13 +75,13 @@ INSERT INTO organization_responsible (organization_id, user_id) VALUES
     (3, 4),
     (3, 5);
 
-INSERT INTO tenders (name, description, status, service_type, author_id, created_at)
+INSERT INTO tenders (name, description, status, service_type, author_id, organization_id,created_at)
 VALUES 
-    ('tender A', 'Описание тендера A', 'Created', 'Delivery', 1, NOW()),
-    ('tender B', 'Описание тендера B', 'In Progress', 'Delivery', 2, NOW()),
-    ('tender C', 'Описание тендера C', 'Completed', 'Delivery', 3, NOW()),
-    ('tender D', 'Описание тендера D', 'Canceled', 'Delivery', 4, NOW()),
-    ('tender E', 'Описание тендера E', 'Created', 'Delivery', 5, NOW());
+    ('tender A', 'Описание тендера A', 'Created', 'Delivery', 1,1, NOW()),
+    ('tender B', 'Описание тендера B', 'In Progress', 'Delivery', 2,2, NOW()),
+    ('tender C', 'Описание тендера C', 'Completed', 'Delivery', 3,3, NOW()),
+    ('tender D', 'Описание тендера D', 'Canceled', 'Delivery', 4,3, NOW()),
+    ('tender E', 'Описание тендера E', 'Created', 'Delivery', 5,3, NOW());
 
 INSERT INTO bids (name, status, author_type, author_id, tender_id, version, created_at)
 VALUES 

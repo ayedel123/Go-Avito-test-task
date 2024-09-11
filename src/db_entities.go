@@ -6,15 +6,16 @@ import (
 
 // Tender
 type Tender struct {
-	UniqueqID   int       `json:"-"`
-	ID          int       `json:"id"`
-	Name        string    `json:"name" binding:"required"`
-	Description string    `json:"description" binding:"required"`
-	Status      string    `json:"status" binding:"required"`
-	ServiceType string    `json:"service_type"`
-	AuthorID    int       `json:"-"`
-	Version     int       `json:"version" gorm:"default:1"`
-	CreatedAt   time.Time `json:"created_at" gorm:"default:current_timestamp"`
+	UniqueID       int       `json:"-"`
+	ID             int       `json:"id"`
+	Name           string    `json:"name" binding:"required"`
+	Description    string    `json:"description" binding:"required"`
+	Status         string    `json:"status" binding:"required"`
+	ServiceType    string    `json:"service_type"`
+	AuthorID       int       `json:"-"`
+	OrganizationID int       `json:"-"`
+	Version        int       `json:"version" gorm:"default:1"`
+	CreatedAt      time.Time `json:"created_at" gorm:"default:current_timestamp"`
 }
 
 // Bids
