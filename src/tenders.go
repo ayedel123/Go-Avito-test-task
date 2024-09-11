@@ -365,8 +365,8 @@ func updateTenderStatus(db *sql.DB, tender_uid int, status string) (string, int)
 	return updatedStatus, 200
 }
 
-func handleGetTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request) {
-	tender_id, res_status := getIntFromRequest(r, -1, "tenderId")
+func handleGetTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, tender_id int) {
+
 	user_name := getUserNameFromRequest(r)
 	if user_name != "" {
 		_, res_status := getUserId(db, user_name)
@@ -387,8 +387,8 @@ func isNewStatusOk(status string) bool {
 	return (status != "" && (status == "Created" || status == "Published" || status == "Closed"))
 }
 
-func handlePutTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request) {
-	tender_id, res_status := getIntFromRequest(r, -1, "tenderId")
+func handlePutTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, tender_id int) {
+
 	user_name := r.URL.Query().Get("username")
 	new_status := r.URL.Query().Get("status")
 	if user_name == "" || !isNewStatusOk(new_status) {
@@ -423,13 +423,15 @@ func handlePutTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 func statusTendersHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-
+		s_tender_id := r.URL.Path[len("/tenders/") : len(r.URL.Path)-len("/status")]
+		tender_id, _ := atoi(s_tender_id)
+		log.Println("status handling ", s_tender_id)
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodGet {
-			handleGetTenderStatus(db, w, r)
+			handleGetTenderStatus(db, w, r, tender_id)
 
 		} else if r.Method == http.MethodPut {
-			handlePutTenderStatus(db, w, r)
+			handlePutTenderStatus(db, w, r, tender_id)
 		} else {
 			sendHttpErr(w, http.StatusMethodNotAllowed)
 			return

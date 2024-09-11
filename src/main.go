@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/mux"
+
 	_ "github.com/lib/pq"
 )
 
@@ -50,12 +52,17 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func httpSetHandlers(db *sql.DB) {
-	http.HandleFunc("/api/ping", pingHandler)
-	http.HandleFunc("/api/users", usersHandler(db))
-	http.HandleFunc("/api/tenders", tendersHandler(db))
-	http.HandleFunc("/api/tenders/new", newTenderHandler(db))
-	http.HandleFunc("/api/tenders/my", myTendersHandler(db))
-	http.HandleFunc("/api/tenders/status", statusTendersHandler(db))
+	r := mux.NewRouter()
+
+	r.HandleFunc("/api/ping", pingHandler).Methods("GET")
+	r.HandleFunc("/api/users", usersHandler(db)).Methods("GET")
+	r.HandleFunc("/api/tenders", tendersHandler(db)).Methods("GET")
+	r.HandleFunc("/api/tenders/new", newTenderHandler(db)).Methods("POST")
+	r.HandleFunc("/api/tenders/my", myTendersHandler(db)).Methods("GET")
+
+	r.HandleFunc("/api/tenders/{tenderId}/status", statusTendersHandler(db)).Methods("GET", "PUT")
+
+	http.Handle("/", r)
 }
 
 func main() {
