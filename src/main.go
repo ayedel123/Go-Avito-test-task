@@ -64,7 +64,7 @@ func httpSetHandlers(db *sql.DB) {
 
 	r.HandleFunc("/api/tenders/{tenderId}/status", statusTendersHandler(db)).Methods("GET", "PUT")
 	r.HandleFunc("/api/tenders/{tenderId}/edit", editTendersHandler(db)).Methods("PATCH")
-	r.HandleFunc("/api/tenders/{tenderId}/rollback/{version}", editTendersHandler(db)).Methods("PUT")
+	r.HandleFunc("/api/tenders/{tenderId}/rollback/{version}", rollbackTendersHandler(db)).Methods("PUT")
 
 	http.Handle("/", r)
 }

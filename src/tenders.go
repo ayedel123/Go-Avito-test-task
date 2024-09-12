@@ -623,13 +623,80 @@ func editTendersHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func getArchivedTender(db *sql.DB, tender_id, version int) (tender *Tender, status int) {
+	status = 200
+	tender = &Tender{}
+	query := `
+    SELECT t.name, t.description, t.status, t.service_type
+    FROM tenders_archive t
+    WHERE t.id = $1 AND t.version = $2
+    `
+	rows, err := db.Query(query, tender_id, version)
+	if err != nil {
+		status = sqlErrToStatus(err, 500)
+		return
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		err := rows.Scan(&tender.Name, &tender.Description, &tender.Status, &tender.ServiceType)
+		tender.Version++
+		if err != nil {
+			status = sqlErrToStatus(err, 500)
+			return
+		}
+		return
+	}
+	status = 404
+	return
+}
+
+func rollbackTender(db *sql.DB, current_tender, old_tender *Tender) (status int) {
+	status = archiveTender(db, current_tender)
+	if status != 200 {
+		return
+	}
+	old_tender.Version = current_tender.Version + 1
+	old_tender.ID = current_tender.ID
+	status = updateTender(db, old_tender)
+	return
+}
+
 func rollbackTendersHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		tenderId := vars["tenderId"]
-		version := vars["version"]
+		s_tender_id := vars["tenderId"]
+		s_version := vars["version"]
+		version, res_status := atoi(s_version)
+		tender_id, tmp_status := atoi(s_tender_id)
+		if res_status != 200 || tmp_status != 200 {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
 
-		log.Printf("Tender ID: %s, Version: %s\n", tenderId, version)
+			return
+		}
+		current_tender, res_status := getTender(db, tender_id)
+		if res_status != 200 {
+			http.Error(w, "Wrong tender or version", http.StatusBadRequest)
+			log.Println("Wrong tender or version", s_version)
+			return
+		}
+
+		old_tender, res_status := getArchivedTender(db, tender_id, version)
+		if res_status != 200 {
+			http.Error(w, "Wrong tender or version", http.StatusBadRequest)
+			log.Println("Wrong tender or version", s_version)
+			return
+		}
+		log.Println("ROLLING")
+		res_status = rollbackTender(db, current_tender, old_tender)
+		if res_status != 200 {
+			http.Error(w, ErrMessageServer, 500)
+			log.Println("Server", s_version)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(old_tender)
 	}
 }
