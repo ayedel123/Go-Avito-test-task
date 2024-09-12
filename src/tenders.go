@@ -38,12 +38,25 @@ type editTenderRequestBody struct {
 	ServiceType string `json:"serviceType,omitempty"`
 }
 
-func atoi(s string) (int, int) {
-
-	if num, err := strconv.Atoi(s); err == nil && num >= 0 {
-		return num, 200
+func atoi(s string) (num int, err_info ErrorInfo) {
+	num = 0
+	num, err := strconv.Atoi(s)
+	if err == nil && num >= 0 {
+		err_info.status = 200
+		return
 	}
-	return 0, 400
+	err_info.status = 400
+	err_info.reason = "Parametr must be positive number."
+	return
+}
+
+func sqlErrToErrInfo(err error, err_status int, message string) ErrorInfo {
+	var err_info ErrorInfo
+	if message != "" {
+		err_info.reason = message
+	}
+	err_info.status = sqlErrToStatus(err, err_status)
+	return err_info
 }
 
 func sqlErrToStatus(err error, err_status int) int {
@@ -59,11 +72,11 @@ func sqlErrToStatus(err error, err_status int) int {
 	return status
 }
 
-func getLimitOffsetFromRequest(r *http.Request) (int, int, int) {
+func getLimitOffsetFromRequest(r *http.Request) (limit int, offset int, err_info ErrorInfo) {
 	s_limit := r.URL.Query().Get("limit")
 	s_offset := r.URL.Query().Get("offset")
 
-	var limit, offset int
+	//var limit, offset int
 
 	if s_limit == "" {
 		s_limit = "5"
@@ -72,23 +85,23 @@ func getLimitOffsetFromRequest(r *http.Request) (int, int, int) {
 	if s_offset == "" {
 		s_offset = "0"
 	}
-	status := 200
-	limit, status = atoi(s_limit)
-	if status == 200 {
-		offset, status = atoi(s_offset)
+	err_info.status = 200
+	limit, err_info = atoi(s_limit)
+	if err_info.status == 200 {
+		offset, err_info = atoi(s_offset)
 	}
-	return limit, offset, status
+	return
 
 }
 
-func getIntFromRequest(r *http.Request, default_val int, param_name string) (int, int) {
+func getIntFromRequest(r *http.Request, default_val int, param_name string) (num int, err_info ErrorInfo) {
 	s_param := r.URL.Query().Get(param_name)
 	if default_val != -1 && s_param == "" {
 		s_param = strconv.Itoa(default_val)
 	}
-	param, status := atoi(s_param)
-	return param, status
+	num, err_info = atoi(s_param)
 
+	return
 }
 
 func getUserNameFromRequest(r *http.Request) string {
@@ -96,7 +109,7 @@ func getUserNameFromRequest(r *http.Request) string {
 	return username
 }
 
-func isUserInOrganization(db *sql.DB, user_id, organization_id int) int {
+func isUserInOrganization(db *sql.DB, user_id, organization_id int) ErrorInfo {
 
 	query := `
         SELECT orgr.user_id 
@@ -105,26 +118,32 @@ func isUserInOrganization(db *sql.DB, user_id, organization_id int) int {
 		LIMIT 1
     `
 	err := db.QueryRow(query, user_id, organization_id).Scan(&user_id)
-
-	return sqlErrToStatus(err, 403)
+	var err_info ErrorInfo
+	err_info.status = sqlErrToStatus(err, 403)
+	err_info.reason = "User does not have permission."
+	return err_info
 }
 
-func getUserId(db *sql.DB, user_name string) (int, int) {
-	var id int
-
+func getUserId(db *sql.DB, user_name string) (user_id int, err_info ErrorInfo) {
 	query := `
         SELECT e.id 
         FROM  employee e WHERE e.username = $1
 		LIMIT 1
     `
-	err := db.QueryRow(query, user_name).Scan(&id)
-	log.Println("name ", user_name, " err", err)
-	return id, sqlErrToStatus(err, 401)
+	err := db.QueryRow(query, user_name).Scan(&user_id)
+
+	err_info.status = sqlErrToStatus(err, 401)
+	if err_info.status != 200 {
+		err_info.reason = "User does not exist."
+	}
+
+	return
 }
 
-func getTenders(db *sql.DB, limit, offset int, service_type string) ([]Tender, error) {
+func getTenders(db *sql.DB, limit, offset int, service_type string) ([]Tender, ErrorInfo) {
 	var query string
 	var args []interface{}
+	var error_info ErrorInfo
 	if service_type != "" {
 		query = `
 		SELECT id, name, description, status, service_type, author_id, version, created_at 
@@ -147,23 +166,29 @@ func getTenders(db *sql.DB, limit, offset int, service_type string) ([]Tender, e
 	}
 
 	rows, err := db.Query(query, args...)
-	if err != nil {
-		return nil, err
+	error_info.status = sqlErrToStatus(err, 500)
+	if error_info.status != 200 {
+		error_info.reason = ErrMessageServer
+		return nil, error_info
 	}
 	defer rows.Close()
 	var tenders []Tender
 	for rows.Next() {
 		var tender Tender
 		if err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.Status, &tender.ServiceType, &tender.AuthorID, &tender.Version, &tender.CreatedAt); err != nil {
-			return nil, err
+			error_info.reason = ErrMessageServer
+			error_info.status = sqlErrToStatus(err, 500)
+			return nil, error_info
 		}
 		tenders = append(tenders, tender)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		error_info.reason = ErrMessageServer
+		error_info.status = sqlErrToStatus(err, 500)
+		return nil, error_info
 	}
 
-	return tenders, nil
+	return tenders, error_info
 }
 
 func getArchivedTenders(db *sql.DB, limit, offset int, service_type string) ([]Tender, error) {
@@ -215,21 +240,25 @@ func isOkServiceType(service_type string) bool {
 }
 
 func tendersArchiveHandler(db *sql.DB) http.HandlerFunc {
+
 	return func(w http.ResponseWriter, r *http.Request) {
+		var err_info ErrorInfo
 		if r.Method != http.MethodGet {
-			sendHttpErr(w, http.StatusMethodNotAllowed)
+			err_info.reason = ErrMessageMethodNotAllowed
+			err_info.status = 405
+			sendHttpErr(w, err_info)
 			return
 		}
 		service_type := r.URL.Query().Get("service_type")
-		limit, offset, res_status := getLimitOffsetFromRequest(r)
-		if res_status != 200 || !isOkServiceType(service_type) {
-			sendHttpErr(w, 400)
+		limit, offset, err_info := getLimitOffsetFromRequest(r)
+		if err_info.status != 200 || !isOkServiceType(service_type) {
+			sendHttpErr(w, err_info)
 			return
 		}
 
 		tenders, err := getArchivedTenders(db, limit, offset, service_type)
 		if err != nil {
-			sendHttpErr(w, 500)
+			sendHttpErr(w, err_info)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -239,20 +268,17 @@ func tendersArchiveHandler(db *sql.DB) http.HandlerFunc {
 
 func tendersHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			sendHttpErr(w, http.StatusMethodNotAllowed)
-			return
-		}
+		var err_info ErrorInfo
 		service_type := r.URL.Query().Get("service_type")
-		limit, offset, res_status := getLimitOffsetFromRequest(r)
-		if res_status != 200 || !isOkServiceType(service_type) {
-			sendHttpErr(w, 400)
+		limit, offset, err_info := getLimitOffsetFromRequest(r)
+		if err_info.status != 200 || !isOkServiceType(service_type) {
+			sendHttpErr(w, err_info)
 			return
 		}
 
-		tenders, err := getTenders(db, limit, offset, service_type)
-		if err != nil {
-			sendHttpErr(w, 500)
+		tenders, err_info := getTenders(db, limit, offset, service_type)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -260,45 +286,49 @@ func tendersHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func isUserExistAndResponsible(db *sql.DB, user_name string, organization_id int) (user_id, status int) {
-	user_id, status = getUserId(db, user_name)
-	if status != 200 {
-		status = http.StatusUnauthorized
+func isUserExistAndResponsible(db *sql.DB, user_name string, organization_id int) (user_id int, err_info ErrorInfo) {
+	user_id, err_info = getUserId(db, user_name)
+	if err_info.status != 200 {
 		return
 	}
-	status = isUserInOrganization(db, user_id, organization_id)
-	if status != 200 {
-		status = http.StatusForbidden
+	err_info = isUserInOrganization(db, user_id, organization_id)
+	if err_info.status != 200 {
+		err_info.status = http.StatusForbidden
+		err_info.reason = ErrMessageNoPermission
 		return
 	}
 	return
 }
 
-func createTender(db *sql.DB, creator_username string, tender *Tender) int {
-
+func createTender(db *sql.DB, creator_username string, tender *Tender) ErrorInfo {
+	var err_info ErrorInfo
 	query := `
 		INSERT INTO tenders (name, description, status, service_type, author_id,organization_id, version, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7,$8)
 		RETURNING id`
 
 	err := db.QueryRow(query, tender.Name, tender.Description, tender.Status, tender.ServiceType, tender.AuthorID, tender.OrganizationID, tender.Version, tender.CreatedAt).Scan(&tender.ID)
-	res_status := sqlErrToStatus(err, http.StatusInternalServerError)
-
-	return res_status
+	err_info.status = sqlErrToStatus(err, http.StatusInternalServerError)
+	if err_info.status != 200 {
+		err_info.reason = ErrMessageServer
+	}
+	return err_info
 
 }
 
-func archiveTender(db *sql.DB, tender *Tender) int {
-
+func archiveTender(db *sql.DB, tender *Tender) ErrorInfo {
+	var err_info ErrorInfo
 	query := `
 		INSERT INTO tenders_archive (id,name, description, status, service_type, version)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id`
 
 	err := db.QueryRow(query, tender.ID, tender.Name, tender.Description, tender.Status, tender.ServiceType, tender.Version).Scan(&tender.ID)
-	res_status := sqlErrToStatus(err, http.StatusInternalServerError)
-
-	return res_status
+	err_info.status = sqlErrToStatus(err, http.StatusInternalServerError)
+	if err_info.status != 200 {
+		err_info.reason = ErrMessageServer
+	}
+	return err_info
 
 }
 
@@ -315,26 +345,25 @@ func validateNewTender(new_tender *CreateTenderData) bool {
 func newTenderHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, ErrMessageWrongRequest, http.StatusMethodNotAllowed)
-			return
-		}
-
+		var err_info ErrorInfo
+		err_info.status = 200
 		var req CreateTenderData
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || !validateNewTender(&req) {
-			http.Error(w, ErrMessageWrongRequest, http.StatusBadRequest)
+			err_info.reason = ErrMessageWrongRequest
+			err_info.status = 400
+			sendHttpErr(w, err_info)
 			return
 		}
-		user_id, res_status := isUserExistAndResponsible(db, req.CreatorUsername, req.OrganizationID)
-		if res_status != 200 {
-			sendHttpErr(w, res_status)
+		user_id, err_info := isUserExistAndResponsible(db, req.CreatorUsername, req.OrganizationID)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 			return
 		}
 		tender := createTenderDataToTender(req, user_id, 1, time.Now())
 		tender.OrganizationID = req.OrganizationID
-		res_status = createTender(db, req.CreatorUsername, tender)
-		if res_status != 200 {
-
+		err_info = createTender(db, req.CreatorUsername, tender)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 			return
 		}
 
@@ -345,7 +374,9 @@ func newTenderHandler(db *sql.DB) http.HandlerFunc {
 
 }
 
-func getUserTenders(db *sql.DB, user_id, limit, offset int) ([]Tender, int) {
+func getUserTenders(db *sql.DB, user_id, limit, offset int) ([]Tender, ErrorInfo) {
+	var err_info ErrorInfo
+	err_info.reason = ErrMessageServer
 	query := `
 	SELECT id, name, description, status, service_type, author_id, version, created_at
 	FROM tenders
@@ -354,21 +385,22 @@ func getUserTenders(db *sql.DB, user_id, limit, offset int) ([]Tender, int) {
 	LIMIT $2 OFFSET $3
 	`
 	rows, err := db.Query(query, user_id, limit, offset)
-	res_status := sqlErrToStatus(err, 200)
-	if res_status != 200 {
-		return nil, res_status
+	err_info.status = sqlErrToStatus(err, 200)
+	if err_info.status != 200 {
+		return nil, err_info
 	}
 	defer rows.Close()
 	var tenders []Tender
 	for rows.Next() {
 		var tender Tender
 		if err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.Status, &tender.ServiceType, &tender.AuthorID, &tender.Version, &tender.CreatedAt); err != nil {
-			return nil, sqlErrToStatus(err, 500)
+			err_info.status = sqlErrToStatus(err, 500)
+			return nil, err_info
 		}
 		tenders = append(tenders, tender)
 	}
-
-	return tenders, sqlErrToStatus(rows.Err(), 500)
+	err_info.status = sqlErrToStatus(rows.Err(), 500)
+	return tenders, err_info
 
 }
 
@@ -376,25 +408,24 @@ func myTendersHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		var err_info ErrorInfo
+
 		w.Header().Set("Content-Type", "application/json")
-		if r.Method != http.MethodGet {
-			sendHttpErr(w, http.StatusMethodNotAllowed)
-			return
-		}
-		limit, offset, res_status := getLimitOffsetFromRequest(r)
+
+		limit, offset, err_info := getLimitOffsetFromRequest(r)
 		var tenders []Tender
 		var user_id int
-		if res_status == 200 {
+		if err_info.status == 200 {
 			user_name := getUserNameFromRequest(r)
-			user_id, res_status = getUserId(db, user_name)
+			user_id, err_info = getUserId(db, user_name)
 
 		}
-		if res_status == 200 {
-			tenders, res_status = getUserTenders(db, user_id, limit, offset)
+		if err_info.status == 200 {
+			tenders, err_info = getUserTenders(db, user_id, limit, offset)
 		}
 
-		if res_status != 200 {
-			sendHttpErr(w, res_status)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 
 		} else {
 
@@ -404,32 +435,41 @@ func myTendersHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func getTender(db *sql.DB, tender_id int) (*Tender, int) {
+func getTender(db *sql.DB, tender_id int) (*Tender, ErrorInfo) {
+	var err_info ErrorInfo
+	err_info.status = 200
+
 	query := `
-    SELECT t.id, t.name, t.description, t.status, t.service_type, t.author_id, t.organization_id, t.version, t.created_at
+    SELECT t.id, t.name, t.description, t.status, t.service_type, 
+           t.author_id, t.organization_id, t.version, t.created_at
     FROM tenders t
     WHERE t.id = $1
     `
 	rows, err := db.Query(query, tender_id)
 	if err != nil {
-		return nil, sqlErrToStatus(err, 500)
+		err_info = sqlErrToErrInfo(err, 500, ErrMessageServer)
+		return nil, err_info
 	}
 	defer rows.Close()
 
 	var tender Tender
 	if rows.Next() {
-		err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.Status,
-			&tender.ServiceType, &tender.AuthorID, &tender.OrganizationID, &tender.Version, &tender.CreatedAt)
-		if err != nil {
-			return nil, sqlErrToStatus(err, 404)
+		if err := rows.Scan(&tender.ID, &tender.Name, &tender.Description,
+			&tender.Status, &tender.ServiceType, &tender.AuthorID,
+			&tender.OrganizationID, &tender.Version, &tender.CreatedAt); err != nil {
+			err_info = sqlErrToErrInfo(err, 500, ErrMessageServer)
+			return nil, err_info
 		}
-		return &tender, 200
+		return &tender, err_info
 	}
+	err_info = sqlErrToErrInfo(sql.ErrNoRows, 404, ErrMessageTenderNotFound)
 
-	return nil, 404
+	return nil, err_info
 }
 
-func updateTenderStatus(db *sql.DB, tender_uid int, status string) (string, int) {
+func updateTenderStatus(db *sql.DB, tender_uid int, status string) (string, ErrorInfo) {
+	var err_info ErrorInfo
+	err_info.status = 200
 	query := `
 		UPDATE tenders
 		SET status = $1
@@ -440,27 +480,32 @@ func updateTenderStatus(db *sql.DB, tender_uid int, status string) (string, int)
 	var updatedStatus string
 	err := db.QueryRow(query, status, tender_uid).Scan(&updatedStatus)
 	if err != nil {
-		return "", sqlErrToStatus(err, 404)
+		err_info.status = sqlErrToStatus(err, 500)
+		err_info.reason = ErrMessageServer
+		return "", err_info
 	}
 
-	return updatedStatus, 200
+	return updatedStatus, err_info
 }
 
 func handleGetTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, tender_id int) {
-
+	var err_info ErrorInfo
 	user_name := getUserNameFromRequest(r)
 	if user_name != "" {
-		_, res_status := getUserId(db, user_name)
-		if res_status != 200 {
-			sendHttpErr(w, res_status)
+		_, err_info = getUserId(db, user_name)
+		if err_info.status != 200 {
+			err_info.reason = ErrMessageWrongUser
+			sendHttpErr(w, err_info)
 			return
 		}
 	}
-	tender, res_status := getTender(db, tender_id)
-	if res_status != 200 {
-		sendHttpErr(w, res_status)
+	tender, err_info := getTender(db, tender_id)
+	if err_info.status != 200 {
+		sendHttpErr(w, err_info)
 		return
 	}
+	log.Println("err_info.status:", err_info.status)
+	log.Println("istender nil", tender == nil)
 	w.Write([]byte(tender.Status))
 }
 
@@ -469,33 +514,35 @@ func isNewStatusOk(status string) bool {
 }
 
 func handlePutTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, tender_id int) {
-
+	var err_info ErrorInfo
 	user_name := r.URL.Query().Get("username")
 	new_status := r.URL.Query().Get("status")
 	if user_name == "" || !isNewStatusOk(new_status) {
-		sendHttpErr(w, 400)
+		err_info.status = 400
+		err_info.reason = ErrMessageWrongRequest
+		sendHttpErr(w, err_info)
 		return
 	}
-	user_id, res_status := getUserId(db, user_name)
-	if res_status != 200 {
-		sendHttpErr(w, res_status)
-		return
-	}
-
-	tender, res_status := getTender(db, tender_id)
-	if res_status != 200 {
-		sendHttpErr(w, res_status)
-		return
-	}
-	res_status = isUserInOrganization(db, user_id, tender.OrganizationID)
-	if res_status != 200 {
-		sendHttpErr(w, res_status)
+	user_id, err_info := getUserId(db, user_name)
+	if err_info.status != 200 {
+		sendHttpErr(w, err_info)
 		return
 	}
 
-	new_status, res_status = updateTenderStatus(db, tender.ID, new_status)
-	if res_status != 200 {
-		sendHttpErr(w, res_status)
+	tender, err_info := getTender(db, tender_id)
+	if err_info.status != 200 {
+		sendHttpErr(w, err_info)
+		return
+	}
+	err_info = isUserInOrganization(db, user_id, tender.OrganizationID)
+	if err_info.status != 200 {
+		sendHttpErr(w, err_info)
+		return
+	}
+
+	new_status, err_info = updateTenderStatus(db, tender.ID, new_status)
+	if err_info.status != 200 {
+		sendHttpErr(w, err_info)
 		return
 	}
 	tender.Status = new_status
@@ -514,15 +561,12 @@ func statusTendersHandler(db *sql.DB) http.HandlerFunc {
 
 		} else if r.Method == http.MethodPut {
 			handlePutTenderStatus(db, w, r, tender_id)
-		} else {
-			sendHttpErr(w, http.StatusMethodNotAllowed)
-			return
 		}
-
 	}
 }
 
-func updateTender(db *sql.DB, tender *Tender) (status int) {
+func updateTender(db *sql.DB, tender *Tender) ErrorInfo {
+	var err_info ErrorInfo
 	query := `UPDATE tenders 
 	SET name = $1, description = $2, service_type = $3, version = $4
 	WHERE id = $5
@@ -531,19 +575,19 @@ func updateTender(db *sql.DB, tender *Tender) (status int) {
 	if err != nil {
 		log.Println(err)
 	}
-	status = sqlErrToStatus(err, 500)
-	return status
+	err_info.status = sqlErrToStatus(err, 500)
+	err_info.reason = ErrMessageServer
+	return err_info
 
 }
 
-func editTender(db *sql.DB, username string, tender *Tender, req_body *editTenderRequestBody) (status int) {
-	status = 200
+func editTender(db *sql.DB, username string, tender *Tender, req_body *editTenderRequestBody) ErrorInfo {
+	var err_info ErrorInfo
+	err_info.status = 200
 
-	status = archiveTender(db, tender)
-	if status != 200 {
-		status = 500
-		log.Println("CantArchive", tender.OrganizationID)
-		return
+	err_info = archiveTender(db, tender)
+	if err_info.status != 200 {
+		return err_info
 	}
 
 	tender.Version++
@@ -557,9 +601,9 @@ func editTender(db *sql.DB, username string, tender *Tender, req_body *editTende
 		tender.ServiceType = req_body.ServiceType
 	}
 
-	status = updateTender(db, tender)
+	err_info = updateTender(db, tender)
 	log.Println("CantUpdate", tender.OrganizationID)
-	return status
+	return err_info
 }
 
 func validateEditTenderParams(req_body *editTenderRequestBody) bool {
@@ -580,41 +624,42 @@ func validateEditTenderParams(req_body *editTenderRequestBody) bool {
 func editTendersHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-
+		var err_info ErrorInfo
 		vars := mux.Vars(r)
 		s_tender_id := vars["tenderId"]
 		user_name := r.URL.Query().Get("username")
 
 		var req_body editTenderRequestBody
-		tender_id, res_status := atoi(s_tender_id)
-		if err := json.NewDecoder(r.Body).Decode(&req_body); err != nil || res_status != 200 || !validateEditTenderParams(&req_body) {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			log.Println("Error", s_tender_id)
+		tender_id, err_info := atoi(s_tender_id)
+		if err := json.NewDecoder(r.Body).Decode(&req_body); err != nil || err_info.status != 200 || !validateEditTenderParams(&req_body) {
+			err_info.reason = ErrMessageWrongRequest
+			err_info.status = 400
+			sendHttpErr(w, err_info)
 			return
 		}
 
-		tender, res_status := getTender(db, tender_id)
-		if res_status != 200 {
-			http.Error(w, "Wrong tender id", http.StatusBadRequest)
+		tender, err_info := getTender(db, tender_id)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 			return
 		}
 
-		user_id, res_status := getUserId(db, user_name)
-		if res_status != 200 {
-			http.Error(w, "Wrong user", res_status)
+		user_id, err_info := getUserId(db, user_name)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 			return
 		}
-		res_status = isUserInOrganization(db, user_id, tender.OrganizationID)
+		err_info = isUserInOrganization(db, user_id, tender.OrganizationID)
 
-		if res_status != 200 {
-			log.Println("User not in org", tender.OrganizationID)
-			http.Error(w, ErrMessageNoPermission, res_status)
+		if err_info.status != 200 {
+
+			sendHttpErr(w, err_info)
 			return
 		}
-		res_status = editTender(db, user_name, tender, &req_body)
-		if res_status != 200 {
-			log.Println("ErrorFromEditTender", s_tender_id)
-			http.Error(w, ErrMessageWrongUser, res_status)
+		err_info = editTender(db, user_name, tender, &req_body)
+		if err_info.status != 200 {
+
+			sendHttpErr(w, err_info)
 			return
 		}
 
@@ -623,8 +668,9 @@ func editTendersHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func getArchivedTender(db *sql.DB, tender_id, version int) (tender *Tender, status int) {
-	status = 200
+func getArchivedTender(db *sql.DB, tender_id, version int) (tender *Tender, err_info ErrorInfo) {
+	err_info.status = 200
+	err_info.reason = ErrMessageServer
 	tender = &Tender{}
 	query := `
     SELECT t.name, t.description, t.status, t.service_type
@@ -633,7 +679,7 @@ func getArchivedTender(db *sql.DB, tender_id, version int) (tender *Tender, stat
     `
 	rows, err := db.Query(query, tender_id, version)
 	if err != nil {
-		status = sqlErrToStatus(err, 500)
+		err_info.status = sqlErrToStatus(err, 500)
 		return
 	}
 	defer rows.Close()
@@ -642,57 +688,67 @@ func getArchivedTender(db *sql.DB, tender_id, version int) (tender *Tender, stat
 		err := rows.Scan(&tender.Name, &tender.Description, &tender.Status, &tender.ServiceType)
 		tender.Version++
 		if err != nil {
-			status = sqlErrToStatus(err, 500)
+			err_info.status = sqlErrToStatus(err, 500)
 			return
 		}
 		return
 	}
-	status = 404
+	err_info.status = 404
+	err_info.reason = "This version of tender does not exist."
 	return
 }
 
-func rollbackTender(db *sql.DB, current_tender, old_tender *Tender) (status int) {
-	status = archiveTender(db, current_tender)
-	if status != 200 {
-		return
+func rollbackTender(db *sql.DB, current_tender, old_tender *Tender) ErrorInfo {
+	err_info := archiveTender(db, current_tender)
+	if err_info.status != 200 {
+		return err_info
 	}
 	old_tender.Version = current_tender.Version + 1
 	old_tender.ID = current_tender.ID
-	status = updateTender(db, old_tender)
-	return
+	err_info = updateTender(db, old_tender)
+	return err_info
 }
 
 func rollbackTendersHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		var err_info ErrorInfo
+		err_info.status = 200
 		vars := mux.Vars(r)
 		s_tender_id := vars["tenderId"]
 		s_version := vars["version"]
-		version, res_status := atoi(s_version)
-		tender_id, tmp_status := atoi(s_tender_id)
-		if res_status != 200 || tmp_status != 200 {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
+		version, err_info := atoi(s_version)
+		tender_id, tmp_err_info := atoi(s_tender_id)
 
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 			return
 		}
-		current_tender, res_status := getTender(db, tender_id)
-		if res_status != 200 {
-			http.Error(w, "Wrong tender or version", http.StatusBadRequest)
-			log.Println("Wrong tender or version", s_version)
+		if tmp_err_info.status != 200 {
+			sendHttpErr(w, tmp_err_info)
+			return
+		}
+		current_tender, err_info := getTender(db, tender_id)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 			return
 		}
 
-		old_tender, res_status := getArchivedTender(db, tender_id, version)
-		if res_status != 200 {
-			http.Error(w, "Wrong tender or version", http.StatusBadRequest)
-			log.Println("Wrong tender or version", s_version)
+		user_name := r.URL.Query().Get("username")
+		_, err_info = isUserExistAndResponsible(db, user_name, current_tender.OrganizationID)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 			return
 		}
-		log.Println("ROLLING")
-		res_status = rollbackTender(db, current_tender, old_tender)
-		if res_status != 200 {
-			http.Error(w, ErrMessageServer, 500)
-			log.Println("Server", s_version)
+
+		old_tender, err_info := getArchivedTender(db, tender_id, version)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
+			return
+		}
+		err_info = rollbackTender(db, current_tender, old_tender)
+		if err_info.status != 200 {
+			sendHttpErr(w, err_info)
 			return
 		}
 

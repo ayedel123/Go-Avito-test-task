@@ -1,27 +1,29 @@
 package main
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 const (
 	ErrMessageWrongUser        = "Incorrect username or user does not exist."
-	ErrMessageNoPermission     = "User does not have permission for this organization."
+	ErrMessageNoPermission     = "User does not have permission."
 	ErrMessageServer           = "Something went wrong. Please try again."
 	ErrMessageWrongRequest     = "The request format or parameters are incorrect."
 	ErrMessageMethodNotAllowed = "Method not allowed"
+	ErrMessageTenderNotFound   = "Tender not Found"
 )
 
-func sendHttpErr(w http.ResponseWriter, status int) {
-	switch status {
-	case http.StatusBadRequest:
-		http.Error(w, ErrMessageWrongRequest, status)
-	case http.StatusUnauthorized:
-		http.Error(w, ErrMessageWrongUser, status)
-	case http.StatusForbidden:
-		http.Error(w, ErrMessageNoPermission, status)
-	case http.StatusMethodNotAllowed:
-		http.Error(w, ErrMessageMethodNotAllowed, status)
-	default:
-		http.Error(w, ErrMessageServer, status)
-	}
+type ErrorInfo struct {
+	status int
+	reason string
+}
+
+func sendHttpErr(w http.ResponseWriter, error_info ErrorInfo) {
+
+	json_response := fmt.Sprintf(`{"reason": "%s"}`, error_info.reason)
+	http.Error(w, json_response, error_info.status)
+
+	return
 
 }
