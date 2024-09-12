@@ -31,8 +31,7 @@ CREATE TABLE IF NOT EXISTS organization_responsible (
 );
 
 CREATE TABLE IF NOT EXISTS tenders (
-    unique_id SERIAL PRIMARY KEY,
-    id SERIAL,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     status VARCHAR(20) NOT NULL,
@@ -41,6 +40,16 @@ CREATE TABLE IF NOT EXISTS tenders (
     organization_id INT NOT NULL,      
     version INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS tenders_archive (
+    unique_id SERIAL PRIMARY KEY,
+    id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    service_type VARCHAR(50) NOT NULL,
+    version INT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS bids (

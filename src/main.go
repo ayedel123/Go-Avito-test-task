@@ -57,11 +57,14 @@ func httpSetHandlers(db *sql.DB) {
 	r.HandleFunc("/api/ping", pingHandler).Methods("GET")
 	r.HandleFunc("/api/users", usersHandler(db)).Methods("GET")
 	r.HandleFunc("/api/tenders", tendersHandler(db)).Methods("GET")
+	r.HandleFunc("/api/archived_tenders", tendersArchiveHandler(db)).Methods("GET")
+
 	r.HandleFunc("/api/tenders/new", newTenderHandler(db)).Methods("POST")
 	r.HandleFunc("/api/tenders/my", myTendersHandler(db)).Methods("GET")
 
 	r.HandleFunc("/api/tenders/{tenderId}/status", statusTendersHandler(db)).Methods("GET", "PUT")
-	r.HandleFunc("/api/tenders/{tenderId}/edit", editTendersHandler(db)).Methods("GET", "PUT")
+	r.HandleFunc("/api/tenders/{tenderId}/edit", editTendersHandler(db)).Methods("PATCH")
+	r.HandleFunc("/api/tenders/{tenderId}/rollback/{version}", editTendersHandler(db)).Methods("PUT")
 
 	http.Handle("/", r)
 }
