@@ -12,6 +12,7 @@ const (
 	ErrMessageWrongRequest     = "The request format or parameters are incorrect."
 	ErrMessageMethodNotAllowed = "Method not allowed"
 	ErrMessageTenderNotFound   = "Tender not Found"
+	ErrMessageBidNotFound      = "Bid not Found"
 )
 
 type ErrorInfo struct {

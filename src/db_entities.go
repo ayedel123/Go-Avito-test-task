@@ -19,14 +19,15 @@ type Tender struct {
 
 // Bids
 type Bid struct {
-	ID         int       `json:"id"`
-	Name       string    `json:"name" binding:"required"`
-	Status     string    `json:"status" binding:"required"`
-	AuthorType string    `json:"author_type" binding:"required"`
-	AuthorID   int       `json:"author_id" binding:"required"`
-	TenderID   int       `json:"tender_id" binding:"required"`
-	Version    int       `json:"version" gorm:"default:1"`
-	CreatedAt  time.Time `json:"created_at" gorm:"default:current_timestamp"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name" binding:"required"`
+	Description string    `json:"-"`
+	Status      string    `json:"status" binding:"required"`
+	AuthorType  string    `json:"author_type" binding:"required"`
+	AuthorID    int       `json:"author_id" binding:"required"`
+	TenderID    int       `json:"-"`
+	Version     int       `json:"version" gorm:"default:1"`
+	CreatedAt   time.Time `json:"created_at" gorm:"default:current_timestamp"`
 }
 
 // Employee

@@ -140,6 +140,23 @@ func getUserId(db *sql.DB, user_name string) (user_id int, err_info ErrorInfo) {
 	return
 }
 
+func getUserName(db *sql.DB, user_id int) (user_name string, err_info ErrorInfo) {
+	user_name = ""
+	query := `
+        SELECT e.username 
+        FROM  employee e WHERE e.id = $1
+		LIMIT 1
+    `
+	err := db.QueryRow(query, user_id).Scan(&user_name)
+
+	err_info.status = sqlErrToStatus(err, 401)
+	if err_info.status != 200 {
+		err_info.reason = "User does not exist."
+	}
+
+	return
+}
+
 func getTenders(db *sql.DB, limit, offset int, service_type string) ([]Tender, ErrorInfo) {
 	var query string
 	var args []interface{}

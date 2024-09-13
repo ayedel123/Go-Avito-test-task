@@ -55,12 +55,21 @@ CREATE TABLE IF NOT EXISTS tenders_archive (
 CREATE TABLE IF NOT EXISTS bids (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    description VARCHAR(100) NOT NULL,
     status VARCHAR(20) NOT NULL,
     author_type VARCHAR(20) NOT NULL,
     author_id INT NOT NULL,
     tender_id INT NOT NULL,
     version INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS bids_archive (
+    unique_id SERIAL PRIMARY KEY,
+    id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(100) NOT NULL,
+    version INT NOT NULL
 );
 
 -- For testing
@@ -92,10 +101,10 @@ VALUES
     ('tender D', 'Описание тендера D', 'Canceled', 'Delivery', 4,3, NOW()),
     ('tender E', 'Описание тендера E', 'Created', 'Delivery', 5,3, NOW());
 
-INSERT INTO bids (name, status, author_type, author_id, tender_id, version, created_at)
+INSERT INTO bids (name, description, status, author_type, author_id, tender_id, version, created_at)
 VALUES 
-    ('Доставка товаров Алексей', 'Created', 'User', 1, (SELECT id FROM tenders WHERE name = 'tender A'), 1, NOW()),
-    ('Предложение по стройматериалам', 'Published', 'Organization', 1, (SELECT id FROM tenders WHERE name = 'tender B'), 1, NOW()),
-    ('Услуги по уборке', 'Created', 'User', 2, (SELECT id FROM tenders WHERE name = 'tender C'), 1, NOW()),
-    ('Проектирование зданий', 'Canceled', 'Organization', 3, (SELECT id FROM tenders WHERE name = 'tender D'), 1, NOW()),
-    ('Консультационные услуги', 'Created', 'User', 4, (SELECT id FROM tenders WHERE name = 'tender E'), 1, NOW());
+    ('Доставка товаров Алексей', 'Описание', 'Created', 'User', 1, (SELECT id FROM tenders WHERE name = 'tender A'), 1, NOW()),
+    ('Предложение по стройматериалам', 'Описание', 'Published', 'Organization', 1, (SELECT id FROM tenders WHERE name = 'tender B'), 1, NOW()),
+    ('Услуги по уборке', 'Описание', 'Created', 'User', 2, (SELECT id FROM tenders WHERE name = 'tender C'), 1, NOW()),
+    ('Проектирование зданий', 'Описание', 'Canceled', 'Organization', 3, (SELECT id FROM tenders WHERE name = 'tender D'), 1, NOW()),
+    ('Консультационные услуги', 'Описание', 'Created', 'User', 4, (SELECT id FROM tenders WHERE name = 'tender E'), 1, NOW());
