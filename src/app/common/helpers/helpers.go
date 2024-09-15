@@ -43,3 +43,7 @@ func GetLimitOffsetFromRequest(r *http.Request) (limit int, offset int, err_info
 	return
 
 }
+
+func IsOkServiceType(service_type string) bool {
+	return (service_type == "" || (service_type == "Construction" || service_type == "Delivery" || service_type == "Manufacture"))
+}
