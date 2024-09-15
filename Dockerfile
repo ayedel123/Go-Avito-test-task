@@ -5,7 +5,7 @@ WORKDIR /home/go-server
 
 COPY . .
 
-WORKDIR /home/go-server/src
+WORKDIR /home/go-server/src/app
 
 RUN go mod tidy
 

@@ -1,34 +1,12 @@
-package main
+package dbhelp
 
 import (
 	"time"
 )
 
 // Tender
-type Tender struct {
-	ID             int       `json:"id"`
-	Name           string    `json:"name" binding:"required"`
-	Description    string    `json:"description" binding:"required"`
-	Status         string    `json:"status" binding:"required"`
-	ServiceType    string    `json:"service_type"`
-	AuthorID       int       `json:"-"`
-	OrganizationID int       `json:"-"`
-	Version        int       `json:"version" gorm:"default:1"`
-	CreatedAt      time.Time `json:"created_at" gorm:"default:current_timestamp"`
-}
 
 // Bids
-type Bid struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name" binding:"required"`
-	Description string    `json:"-"`
-	Status      string    `json:"status" binding:"required"`
-	AuthorType  string    `json:"author_type" binding:"required"`
-	AuthorID    int       `json:"author_id" binding:"required"`
-	TenderID    int       `json:"-"`
-	Version     int       `json:"version" gorm:"default:1"`
-	CreatedAt   time.Time `json:"created_at" gorm:"default:current_timestamp"`
-}
 
 // Employee
 type Employee struct {

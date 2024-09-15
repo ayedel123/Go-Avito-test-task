@@ -1,4 +1,4 @@
-package main
+package errinfo
 
 import (
 	"fmt"
@@ -16,15 +16,14 @@ const (
 )
 
 type ErrorInfo struct {
-	status int
-	reason string
+	Status int
+	Reason string
 }
 
-func sendHttpErr(w http.ResponseWriter, error_info ErrorInfo) {
+func SendHttpErr(w http.ResponseWriter, errorInfo ErrorInfo) {
 
-	json_response := fmt.Sprintf(`{"reason": "%s"}`, error_info.reason)
-	http.Error(w, json_response, error_info.status)
+	jsonResponse := fmt.Sprintf(`{"reason": "%s"}`, errorInfo.Reason)
 
-	return
+	http.Error(w, jsonResponse, errorInfo.Status)
 
 }

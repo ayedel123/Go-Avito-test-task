@@ -10,7 +10,7 @@ services:
     ports:
       - "${POSTGRES_PORT}:${POSTGRES_PORT}"
     volumes:
-      - ./src/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./src/data_base/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   app:
     build: .
