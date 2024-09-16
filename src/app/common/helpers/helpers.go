@@ -4,6 +4,8 @@ import (
 	"go_server/m/common/errinfo"
 	"net/http"
 	"strconv"
+
+	"github.com/google/uuid"
 )
 
 func IsNewStatusOk(status string) bool {
@@ -46,4 +48,15 @@ func GetLimitOffsetFromRequest(r *http.Request) (limit int, offset int, err_info
 
 func IsOkServiceType(service_type string) bool {
 	return (service_type == "" || (service_type == "Construction" || service_type == "Delivery" || service_type == "Manufacture"))
+}
+
+func ParseUUID(s_id string) (uuid.UUID, errinfo.ErrorInfo) {
+	id, err := uuid.Parse(s_id)
+	var err_info errinfo.ErrorInfo
+	err_info.Init(200, "Ok")
+	if err != nil {
+		err_info.Init(400, errinfo.ErrMessageWrongRequest)
+	}
+
+	return id, err_info
 }

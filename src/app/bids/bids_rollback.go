@@ -63,7 +63,7 @@ func RollbackBidsHandler(db *sql.DB) http.HandlerFunc {
 		s_bid_id := vars["bidId"]
 		s_version := vars["version"]
 		version, err_info := helpers.Atoi(s_version)
-		bid_id, tmp_err_info := helpers.Atoi(s_bid_id)
+		bid_id, tmp_err_info := helpers.ParseUUID(s_bid_id)
 
 		if err_info.Status != 200 {
 			errinfo.SendHttpErr(w, err_info)

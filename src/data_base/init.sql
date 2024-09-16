@@ -1,5 +1,7 @@
 -- init.sql
 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE IF NOT EXISTS employee (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -31,7 +33,7 @@ CREATE TABLE IF NOT EXISTS organization_responsible (
 );
 
 CREATE TABLE IF NOT EXISTS tenders (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT (uuid_generate_v4()),
     name VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     status VARCHAR(20) NOT NULL,
@@ -44,7 +46,7 @@ CREATE TABLE IF NOT EXISTS tenders (
 
 CREATE TABLE IF NOT EXISTS tenders_archive (
     unique_id SERIAL PRIMARY KEY,
-    id INT NOT NULL,
+    id UUID NOT NULL,
     name VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     status VARCHAR(20) NOT NULL,
@@ -53,13 +55,13 @@ CREATE TABLE IF NOT EXISTS tenders_archive (
 );
 
 CREATE TABLE IF NOT EXISTS bids (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT (uuid_generate_v4()),
     name VARCHAR(100) NOT NULL,
     description VARCHAR(100) NOT NULL,
     status VARCHAR(20) NOT NULL,
     author_type VARCHAR(20) NOT NULL,
     author_id INT NOT NULL,
-    tender_id INT NOT NULL,
+    tender_id UUID NOT NULL,
     version INT DEFAULT 1,
     approve_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -67,7 +69,7 @@ CREATE TABLE IF NOT EXISTS bids (
 
 CREATE TABLE IF NOT EXISTS bids_reviews (
     id SERIAL PRIMARY KEY,
-    bid_id INT NOT NULL,
+    bid_id UUID NOT NULL,
     author_name VARCHAR(50) NOT NULL,
     description VARCHAR(1000) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -76,7 +78,7 @@ CREATE TABLE IF NOT EXISTS bids_reviews (
 
 CREATE TABLE IF NOT EXISTS bids_archive (
     unique_id SERIAL PRIMARY KEY,
-    id INT NOT NULL,
+    id UUID NOT NULL,
     name VARCHAR(100) NOT NULL,
     description VARCHAR(100) NOT NULL,
     version INT NOT NULL
@@ -92,10 +94,12 @@ INSERT INTO employee (username, first_name, last_name) VALUES
     ('user5', 'Charlie', 'Davis'),
     ('user6', 'Charlie', 'Davis');
 
+
 INSERT INTO organization (name, description, type) VALUES
     ('Organization A', 'This is organization A', 'LLC'),
     ('Organization B', 'This is organization B', 'IE'),
     ('Organization C', 'This is organization C', 'JSC');
+
 
 INSERT INTO organization_responsible (organization_id, user_id) VALUES
     (1, 1),
@@ -105,13 +109,14 @@ INSERT INTO organization_responsible (organization_id, user_id) VALUES
     (3, 5),
     (1, 6);
 
-INSERT INTO tenders (name, description, status, service_type, author_id, organization_id,created_at)
+
+INSERT INTO tenders (name, description, status, service_type, author_id, organization_id, created_at)
 VALUES 
-    ('tender A', 'Описание тендера A', 'Created', 'Delivery', 1,1, NOW()),
-    ('tender B', 'Описание тендера B', 'In Progress', 'Delivery', 2,2, NOW()),
-    ('tender C', 'Описание тендера C', 'Completed', 'Delivery', 3,3, NOW()),
-    ('tender D', 'Описание тендера D', 'Canceled', 'Delivery', 4,3, NOW()),
-    ('tender E', 'Описание тендера E', 'Created', 'Delivery', 5,3, NOW());
+    ('tender A', 'Описание тендера A', 'Created', 'Delivery', 1, 1, NOW()),
+    ('tender B', 'Описание тендера B', 'In Progress', 'Delivery', 2, 2, NOW()),
+    ('tender C', 'Описание тендера C', 'Completed', 'Delivery', 3, 3, NOW()),
+    ('tender D', 'Описание тендера D', 'Canceled', 'Delivery', 4, 3, NOW()),
+    ('tender E', 'Описание тендера E', 'Created', 'Delivery', 5, 3, NOW());
 
 INSERT INTO bids (name, description, status, author_type, author_id, tender_id, version, created_at)
 VALUES 

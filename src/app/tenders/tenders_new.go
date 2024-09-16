@@ -32,6 +32,7 @@ func validateNewTender(new_tender *CreateTenderData) bool {
 	if len(new_tender.Description) > 100 {
 		return false
 	}
+
 	return true
 }
 

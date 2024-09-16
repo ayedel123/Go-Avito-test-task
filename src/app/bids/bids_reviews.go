@@ -9,10 +9,11 @@ import (
 	"go_server/m/tenders"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
-func getReviews(db *sql.DB, tender_id, user_id, limit, offset int) ([]BidReview, errinfo.ErrorInfo) {
+func getReviews(db *sql.DB, tender_id uuid.UUID, user_id, limit, offset int) ([]BidReview, errinfo.ErrorInfo) {
 	var err_info errinfo.ErrorInfo
 	query := `
 		SELECT br.id, br.bid_id, br.author_name, br.description, br.created_at 
@@ -23,7 +24,7 @@ func getReviews(db *sql.DB, tender_id, user_id, limit, offset int) ([]BidReview,
 	`
 	var reviews []BidReview
 	rows, err := db.Query(query, limit, offset, tender_id, user_id)
-	err_info.Status = dbhelp.SqlErrToStatus(err, 200)
+	err_info = dbhelp.SqlErrToErrInfo(err, 404, "Reviews not found.")
 	if err_info.Status != 200 {
 		return nil, err_info
 	}
@@ -43,14 +44,14 @@ func getReviews(db *sql.DB, tender_id, user_id, limit, offset int) ([]BidReview,
 
 }
 
-func checkReviewParams(db *sql.DB, r *http.Request) (author_id, tender_id int, err_info errinfo.ErrorInfo) {
+func checkReviewParams(db *sql.DB, r *http.Request) (author_id int, tender_id uuid.UUID, err_info errinfo.ErrorInfo) {
 	err_info.Init(200, "Ok")
 	vars := mux.Vars(r)
 	s_tender_id := vars["tenderId"]
 	author_name := r.URL.Query().Get("authorUsername")
 	requester_name := r.URL.Query().Get("requesterUsername")
 	author_id = 0
-	tender_id = 0
+
 	if len(s_tender_id) > 100 || len(s_tender_id) == 0 {
 		err_info.Status = 400
 		err_info.Reason = errinfo.ErrMessageWrongRequest
@@ -61,7 +62,7 @@ func checkReviewParams(db *sql.DB, r *http.Request) (author_id, tender_id int, e
 		return
 	}
 
-	tender_id, err_info = helpers.Atoi(s_tender_id)
+	tender_id, err_info = helpers.ParseUUID(s_tender_id)
 	if err_info.Status != 200 {
 		return
 	}

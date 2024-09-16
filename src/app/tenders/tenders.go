@@ -9,10 +9,12 @@ import (
 	"go_server/m/common/dbhelp"
 	"go_server/m/common/errinfo"
 	"go_server/m/common/helpers"
+
+	"github.com/google/uuid"
 )
 
 type Tender struct {
-	ID             int       `json:"id"`
+	ID             uuid.UUID `json:"id"`
 	Name           string    `json:"name" binding:"required"`
 	Description    string    `json:"description" binding:"required"`
 	Status         string    `json:"status" binding:"required"`
@@ -219,7 +221,7 @@ func TendersHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func GetTender(db *sql.DB, tender_id int) (*Tender, errinfo.ErrorInfo) {
+func GetTender(db *sql.DB, tender_id uuid.UUID) (*Tender, errinfo.ErrorInfo) {
 	var err_info errinfo.ErrorInfo
 	err_info.Status = 200
 

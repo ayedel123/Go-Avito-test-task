@@ -10,13 +10,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
 type BidReview struct {
-	Id          int       `json:"id"`
+	Id          uuid.UUID `json:"id"`
 	Description string    `json:"description" binding:"required"`
-	BidId       int       `json:"-"`
+	BidId       uuid.UUID `json:"-"`
 	AuthorName  string    `json:"-"`
 	CreatedAt   time.Time `json:"created_at" gorm:"default:current_timestamp"`
 }
@@ -52,7 +53,7 @@ func checkFeedbackParams(db *sql.DB, r *http.Request) (bid_review BidReview, err
 		return
 	}
 
-	bid_id, err_info := helpers.Atoi(s_bid_id)
+	bid_id, err_info := helpers.ParseUUID(s_bid_id)
 	if err_info.Status != 200 {
 		log.Println("ID not numb")
 		return

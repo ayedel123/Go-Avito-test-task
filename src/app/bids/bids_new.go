@@ -17,7 +17,7 @@ func validateNewBid(new_bid *CreateBidData) bool {
 	if len(new_bid.Description) > 100 {
 		return false
 	}
-	if new_bid.TenderID <= 0 || new_bid.AuthorId <= 0 {
+	if len(new_bid.TenderID) > 100 {
 		return false
 	}
 	if new_bid.AuthorType != "User" && new_bid.AuthorType != "Organization" {

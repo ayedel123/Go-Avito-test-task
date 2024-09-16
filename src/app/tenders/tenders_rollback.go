@@ -8,10 +8,11 @@ import (
 	"go_server/m/common/helpers"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
-func getArchivedTender(db *sql.DB, tender_id, version int) (tender *Tender, err_info errinfo.ErrorInfo) {
+func getArchivedTender(db *sql.DB, tender_id uuid.UUID, version int) (tender *Tender, err_info errinfo.ErrorInfo) {
 	err_info.Status = 200
 	err_info.Reason = errinfo.ErrMessageServer
 	tender = &Tender{}
@@ -61,7 +62,7 @@ func RollbackTendersHandler(db *sql.DB) http.HandlerFunc {
 		s_tender_id := vars["tenderId"]
 		s_version := vars["version"]
 		version, err_info := helpers.Atoi(s_version)
-		tender_id, tmp_err_info := helpers.Atoi(s_tender_id)
+		tender_id, tmp_err_info := helpers.ParseUUID(s_tender_id)
 
 		if err_info.Status != 200 {
 			errinfo.SendHttpErr(w, err_info)

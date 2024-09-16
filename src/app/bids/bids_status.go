@@ -9,10 +9,11 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
-func handlePutBidStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, bid_id int) {
+func handlePutBidStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, bid_id uuid.UUID) {
 	var err_info errinfo.ErrorInfo
 	user_name := r.URL.Query().Get("username")
 	new_status := r.URL.Query().Get("status")
@@ -43,7 +44,7 @@ func handlePutBidStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, bid_
 	json.NewEncoder(w).Encode(bid)
 }
 
-func handleGetBidStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, bid_id int) {
+func handleGetBidStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, bid_id uuid.UUID) {
 	var err_info errinfo.ErrorInfo
 	user_name := r.URL.Query().Get("username")
 
@@ -61,7 +62,7 @@ func handleGetBidStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, bid_
 	w.Write([]byte(bid.Status))
 }
 
-func updateBidStatus(db *sql.DB, bid_id int, status string) (string, errinfo.ErrorInfo) {
+func updateBidStatus(db *sql.DB, bid_id uuid.UUID, status string) (string, errinfo.ErrorInfo) {
 	var err_info errinfo.ErrorInfo
 	err_info.Status = 200
 	query := `
@@ -90,7 +91,7 @@ func StatusBidsHandler(db *sql.DB) http.HandlerFunc {
 		vars := mux.Vars(r)
 		s_bid_id := vars["bidId"]
 		w.Header().Set("Content-Type", "application/json")
-		bid_id, err_info := helpers.Atoi(s_bid_id)
+		bid_id, err_info := helpers.ParseUUID(s_bid_id)
 		if err_info.Status != 200 {
 			errinfo.SendHttpErr(w, err_info)
 			return

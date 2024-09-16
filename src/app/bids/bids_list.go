@@ -9,10 +9,11 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
-func GetTenderBids(db *sql.DB, tender_id, limit, offset int) ([]Bid, errinfo.ErrorInfo) {
+func GetTenderBids(db *sql.DB, tender_id uuid.UUID, limit, offset int) ([]Bid, errinfo.ErrorInfo) {
 	var err_info errinfo.ErrorInfo
 	err_info.Reason = errinfo.ErrMessageServer
 	query := `
@@ -48,11 +49,10 @@ func ListBidsHandler(db *sql.DB) http.HandlerFunc {
 		vars := mux.Vars(r)
 		s_tender_id := vars["tenderId"]
 		user_name := r.URL.Query().Get("username")
-		tender_id, err_info := helpers.Atoi(s_tender_id)
+		tender_id, err_info := helpers.ParseUUID(s_tender_id)
 		limit, offset, tmp_err_info := helpers.GetLimitOffsetFromRequest(r)
 		if err_info.Status != 200 || tmp_err_info.Status != 200 || user_name == "" {
-			err_info.Reason = errinfo.ErrMessageWrongRequest
-			err_info.Status = 400
+			err_info.Init(400, errinfo.ErrMessageWrongRequest)
 			errinfo.SendHttpErr(w, err_info)
 			return
 		}

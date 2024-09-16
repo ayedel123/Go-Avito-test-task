@@ -88,7 +88,7 @@ func EditBidsHandler(db *sql.DB) http.HandlerFunc {
 		user_name := r.URL.Query().Get("username")
 
 		var req_body editBidRequestBody
-		bid_id, err_info := helpers.Atoi(s_bid_id)
+		bid_id, err_info := helpers.ParseUUID(s_bid_id)
 		if err := json.NewDecoder(r.Body).Decode(&req_body); err != nil || err_info.Status != 200 || !validateEditBidParams(&req_body) {
 			err_info.Reason = errinfo.ErrMessageWrongRequest
 			err_info.Status = 400

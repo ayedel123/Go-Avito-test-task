@@ -93,7 +93,7 @@ func EditTendersHandler(db *sql.DB) http.HandlerFunc {
 		user_name := r.URL.Query().Get("username")
 
 		var req_body editTenderRequestBody
-		tender_id, err_info := helpers.Atoi(s_tender_id)
+		tender_id, err_info := helpers.ParseUUID(s_tender_id)
 		if err := json.NewDecoder(r.Body).Decode(&req_body); err != nil || err_info.Status != 200 || !validateEditTenderParams(&req_body) {
 			err_info.Reason = errinfo.ErrMessageWrongRequest
 			err_info.Status = 400

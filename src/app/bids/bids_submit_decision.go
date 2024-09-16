@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -26,7 +27,7 @@ func checkSubmitDecisionParams(db *sql.DB, r *http.Request) (bid *Bid, err_info 
 		return
 	}
 
-	bid_id, err_info := helpers.Atoi(s_bid_id)
+	bid_id, err_info := helpers.ParseUUID(s_bid_id)
 	if err_info.Status != 200 {
 		log.Println("ID not numb")
 		return
@@ -46,7 +47,7 @@ func checkSubmitDecisionParams(db *sql.DB, r *http.Request) (bid *Bid, err_info 
 	return
 }
 
-func getResponsibleCount(db *sql.DB, tender_id int) (count int, err_info errinfo.ErrorInfo) {
+func getResponsibleCount(db *sql.DB, tender_id uuid.UUID) (count int, err_info errinfo.ErrorInfo) {
 
 	err_info.Init(200, "Ok")
 	count = 0
@@ -71,7 +72,7 @@ func getResponsibleCount(db *sql.DB, tender_id int) (count int, err_info errinfo
 
 }
 
-func updateAproveCount(db *sql.DB, bid_id int, count int) (int, errinfo.ErrorInfo) {
+func updateAproveCount(db *sql.DB, bid_id uuid.UUID, count int) (int, errinfo.ErrorInfo) {
 	var err_info errinfo.ErrorInfo
 	err_info.Status = 200
 	query := `
@@ -101,7 +102,7 @@ func SubmitDecisionHandler(db *sql.DB) http.HandlerFunc {
 		}
 		if decision == "Rejected" {
 			updateBidStatus(db, bid.ID, "Closed")
-		} else {
+		} else if bid.Status != "Closed" {
 			resp_count, err_info := getResponsibleCount(db, bid.TenderID)
 			if err_info.Status != 200 {
 				errinfo.SendHttpErr(w, err_info)

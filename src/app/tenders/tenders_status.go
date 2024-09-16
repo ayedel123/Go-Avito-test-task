@@ -8,9 +8,11 @@ import (
 	"go_server/m/common/helpers"
 	"log"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
-func updateTenderStatus(db *sql.DB, tender_uid int, status string) (string, errinfo.ErrorInfo) {
+func updateTenderStatus(db *sql.DB, tender_uid uuid.UUID, status string) (string, errinfo.ErrorInfo) {
 	var err_info errinfo.ErrorInfo
 	err_info.Status = 200
 	query := `
@@ -31,7 +33,7 @@ func updateTenderStatus(db *sql.DB, tender_uid int, status string) (string, erri
 	return updatedStatus, err_info
 }
 
-func handleGetTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, tender_id int) {
+func handleGetTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, tender_id uuid.UUID) {
 	var err_info errinfo.ErrorInfo
 	user_name := r.URL.Query().Get("username")
 	if user_name != "" {
@@ -51,7 +53,7 @@ func handleGetTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, t
 	w.Write([]byte(tender.Status))
 }
 
-func handlePutTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, tender_id int) {
+func handlePutTenderStatus(db *sql.DB, w http.ResponseWriter, r *http.Request, tender_id uuid.UUID) {
 	var err_info errinfo.ErrorInfo
 	user_name := r.URL.Query().Get("username")
 	new_status := r.URL.Query().Get("status")
@@ -87,7 +89,7 @@ func StatusTendersHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		s_tender_id := r.URL.Path[len("/api/tenders/") : len(r.URL.Path)-len("/status")]
-		tender_id, _ := helpers.Atoi(s_tender_id)
+		tender_id, _ := helpers.ParseUUID(s_tender_id)
 		log.Println("status handling ", s_tender_id)
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodGet {

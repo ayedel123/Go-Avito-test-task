@@ -11,16 +11,18 @@ import (
 	"go_server/m/common/errinfo"
 	"go_server/m/common/helpers"
 	"go_server/m/tenders"
+
+	"github.com/google/uuid"
 )
 
 type Bid struct {
-	ID          int       `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	Name        string    `json:"name" binding:"required"`
 	Description string    `json:"-"`
 	Status      string    `json:"status" binding:"required"`
 	AuthorType  string    `json:"author_type" binding:"required"`
 	AuthorID    int       `json:"author_id" binding:"required"`
-	TenderID    int       `json:"-"`
+	TenderID    uuid.UUID `json:"-"`
 	Version     int       `json:"version" gorm:"default:1"`
 	AproveCount int       `json:"-"`
 	CreatedAt   time.Time `json:"created_at" gorm:"default:current_timestamp"`
@@ -74,7 +76,7 @@ func getBids(db *sql.DB, limit, offset int) ([]Bid, errinfo.ErrorInfo) {
 	return bids, err_info
 }
 
-func getBid(db *sql.DB, tender_id int) (*Bid, errinfo.ErrorInfo) {
+func getBid(db *sql.DB, bid_id uuid.UUID) (*Bid, errinfo.ErrorInfo) {
 	var err_info errinfo.ErrorInfo
 	err_info.Status = 200
 
@@ -84,7 +86,7 @@ func getBid(db *sql.DB, tender_id int) (*Bid, errinfo.ErrorInfo) {
 		WHERE id = $1
 		LIMIT 1
 		`
-	rows, err := db.Query(query, tender_id)
+	rows, err := db.Query(query, bid_id)
 	if err != nil {
 		err_info = dbhelp.SqlErrToErrInfo(err, 500, errinfo.ErrMessageServer)
 		return nil, err_info
@@ -137,14 +139,14 @@ func createBidDataToBid(req CreateBidData, version int, created_at time.Time) *B
 }
 
 type CreateBidData struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	TenderID    int    `json:"tenderId"`
-	AuthorType  string `json:"authorType"`
-	AuthorId    int    `json:"authorId"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	TenderID    uuid.UUID `json:"tenderId"`
+	AuthorType  string    `json:"authorType"`
+	AuthorId    int       `json:"authorId"`
 }
 
-func hasUserAccesstoTender(db *sql.DB, user_name string, tender_id int) errinfo.ErrorInfo {
+func hasUserAccesstoTender(db *sql.DB, user_name string, tender_id uuid.UUID) errinfo.ErrorInfo {
 
 	user_id, err_info := dbhelp.GetUserId(db, user_name)
 	if err_info.Status != 200 {

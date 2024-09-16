@@ -13,7 +13,7 @@ func getUserBids(db *sql.DB, user_id, limit, offset int) ([]Bid, errinfo.ErrorIn
 	var err_info errinfo.ErrorInfo
 	err_info.Reason = errinfo.ErrMessageServer
 	query := `
-	SELECT id, name, description,, status,author_type , author_id, tender_id,version, created_at
+	SELECT id, name, description, status, author_type, author_id, tender_id, version, created_at
 	FROM bids
 	WHERE author_id = $1
 	ORDER BY name
