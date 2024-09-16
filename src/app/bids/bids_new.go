@@ -26,6 +26,23 @@ func validateNewBid(new_bid *CreateBidData) bool {
 	return true
 }
 
+func createBid(db *sql.DB, bid *Bid) errinfo.ErrorInfo {
+
+	var err_info errinfo.ErrorInfo
+	query := `
+		INSERT INTO bids (name, description,status, author_type, author_id, tender_id, version, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id`
+	err := db.QueryRow(query, bid.Name, bid.Description, bid.Status, bid.AuthorType, bid.AuthorID, bid.TenderID, bid.Version, bid.CreatedAt).Scan(&bid.ID)
+	err_info.Status = dbhelp.SqlErrToStatus(err, http.StatusInternalServerError)
+	if err_info.Status != 200 {
+		err_info.Reason = errinfo.ErrMessageServer
+	}
+
+	return err_info
+
+}
+
 func NewBidHandler(db *sql.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {

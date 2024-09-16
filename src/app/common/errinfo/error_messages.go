@@ -27,3 +27,8 @@ func SendHttpErr(w http.ResponseWriter, errorInfo ErrorInfo) {
 	http.Error(w, jsonResponse, errorInfo.Status)
 
 }
+
+func (err *ErrorInfo) Init(status int, reason string) {
+	err.Status = status
+	err.Reason = reason
+}

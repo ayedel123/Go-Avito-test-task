@@ -64,6 +64,15 @@ CREATE TABLE IF NOT EXISTS bids (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS bids_reviews (
+    id SERIAL PRIMARY KEY,
+    bid_id INT NOT NULL,
+    author_name VARCHAR(50) NOT NULL,
+    description VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
 CREATE TABLE IF NOT EXISTS bids_archive (
     unique_id SERIAL PRIMARY KEY,
     id INT NOT NULL,
@@ -79,7 +88,8 @@ INSERT INTO employee (username, first_name, last_name) VALUES
     ('user2', 'Jane', 'Smith'),
     ('user3', 'Alice', 'Johnson'),
     ('user4', 'Bob', 'Brown'),
-    ('user5', 'Charlie', 'Davis');
+    ('user5', 'Charlie', 'Davis'),
+    ('user6', 'Charlie', 'Davis');
 
 INSERT INTO organization (name, description, type) VALUES
     ('Organization A', 'This is organization A', 'LLC'),
@@ -91,7 +101,8 @@ INSERT INTO organization_responsible (organization_id, user_id) VALUES
     (1, 2),
     (2, 3),
     (3, 4),
-    (3, 5);
+    (3, 5),
+    (1, 6);
 
 INSERT INTO tenders (name, description, status, service_type, author_id, organization_id,created_at)
 VALUES 

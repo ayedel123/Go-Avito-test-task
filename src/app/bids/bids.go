@@ -78,9 +78,9 @@ func getBid(db *sql.DB, tender_id int) (*Bid, errinfo.ErrorInfo) {
 	err_info.Status = 200
 
 	query := `
-		SELECT id, name,  description, status, author_type,author_id,tender_id, version, created_at 
+		SELECT id, name, description, status, author_type, author_id, tender_id, version, created_at 
 		FROM bids
-		WHERE tender_id = $1
+		WHERE id = $1
 		LIMIT 1
 		`
 	rows, err := db.Query(query, tender_id)
@@ -123,23 +123,6 @@ func BidsHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func createBid(db *sql.DB, bid *Bid) errinfo.ErrorInfo {
-
-	var err_info errinfo.ErrorInfo
-	query := `
-		INSERT INTO bids (name, description,status, author_type, author_id, tender_id, version, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id`
-	err := db.QueryRow(query, bid.Name, &bid.Description, bid.Status, bid.AuthorType, bid.AuthorID, bid.TenderID, bid.Version, bid.CreatedAt).Scan(&bid.ID)
-	err_info.Status = dbhelp.SqlErrToStatus(err, http.StatusInternalServerError)
-	if err_info.Status != 200 {
-		err_info.Reason = errinfo.ErrMessageServer
-	}
-
-	return err_info
-
-}
-
 func createBidDataToBid(req CreateBidData, version int, created_at time.Time) *Bid {
 	return &Bid{
 		Name:       req.Name,
@@ -176,5 +159,3 @@ func hasUserAccesstoTender(db *sql.DB, user_name string, tender_id int) errinfo.
 	}
 	return err_info
 }
-
-
