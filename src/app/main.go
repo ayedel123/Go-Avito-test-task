@@ -80,6 +80,7 @@ func httpSetHandlers(db *sql.DB) {
 	r.HandleFunc("/api/bids/{bidId}/rollback/{version}", bids.RollbackBidsHandler(db)).Methods("PUT")
 	r.HandleFunc("/api/bids/{bidId}/feedback", bids.FeedbackHandler(db)).Methods("PUT")
 	r.HandleFunc("/api/bids/{tenderId}/reviews", bids.ReviewsHandler(db)).Methods("GET")
+	r.HandleFunc("/api/bids/{bidId}/submit_decision", bids.SubmitDecisionHandler(db)).Methods("PUT")
 
 	http.Handle("/", r)
 }

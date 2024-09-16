@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS bids (
     author_id INT NOT NULL,
     tender_id INT NOT NULL,
     version INT DEFAULT 1,
+    approve_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

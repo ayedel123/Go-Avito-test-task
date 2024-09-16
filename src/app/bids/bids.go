@@ -22,6 +22,7 @@ type Bid struct {
 	AuthorID    int       `json:"author_id" binding:"required"`
 	TenderID    int       `json:"-"`
 	Version     int       `json:"version" gorm:"default:1"`
+	AproveCount int       `json:"-"`
 	CreatedAt   time.Time `json:"created_at" gorm:"default:current_timestamp"`
 }
 
@@ -78,7 +79,7 @@ func getBid(db *sql.DB, tender_id int) (*Bid, errinfo.ErrorInfo) {
 	err_info.Status = 200
 
 	query := `
-		SELECT id, name, description, status, author_type, author_id, tender_id, version, created_at 
+		SELECT id, name, description, status, author_type, author_id, tender_id, version, approve_count,created_at 
 		FROM bids
 		WHERE id = $1
 		LIMIT 1
@@ -92,7 +93,7 @@ func getBid(db *sql.DB, tender_id int) (*Bid, errinfo.ErrorInfo) {
 
 	var bid Bid
 	if rows.Next() {
-		if err := rows.Scan(&bid.ID, &bid.Name, &bid.Description, &bid.Status, &bid.AuthorType, &bid.AuthorID, &bid.TenderID, &bid.Version, &bid.CreatedAt); err != nil {
+		if err := rows.Scan(&bid.ID, &bid.Name, &bid.Description, &bid.Status, &bid.AuthorType, &bid.AuthorID, &bid.TenderID, &bid.Version, &bid.AproveCount, &bid.CreatedAt); err != nil {
 			err_info = dbhelp.SqlErrToErrInfo(err, 500, errinfo.ErrMessageServer)
 			return nil, err_info
 		}
